@@ -1,0 +1,31 @@
+# Meetily Snapdragon — Backend függőségek
+# Csak lokális AI providerek: GenieAPIService, Ollama, NexaAI
+# Cloud provider SDK-k nincsenek — API kulcskezelés httpx-en át, in-app UI-ból
+
+# ── Core framework ───────────────────────────────────────────────────────────
+fastapi==0.115.9
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# ── Pydantic ─────────────────────────────────────────────────────────────────
+pydantic==2.11.5
+pydantic-settings==2.7.0
+
+# ── HTTP kliens (GenieAPIService + NexaAI hívásokhoz) ────────────────────────
+httpx>=0.27.0
+
+# ── Környezeti változók ───────────────────────────────────────────────────────
+python-dotenv==1.1.0
+
+# ── Adatbázis ─────────────────────────────────────────────────────────────────
+aiosqlite==0.21.0
+
+# ── Ollama natív kliens ───────────────────────────────────────────────────────
+# Ha nincs telepítve, a rendszer automatikusan visszaesik az Ollama /v1 REST API-ra
+ollama==0.5.2
+
+# ── NPU extras (opcionális — csak Snapdragon X Elite gépen) ──────────────────
+# Ha telepítve van, a whisper_npu.py ONNX backend-et is támogat
+# onnxruntime>=1.20.0          # alap ONNX futtatókörnyezet
+# librosa>=0.10.0               # audio preprocessing
+# soundfile>=0.12.0             # WAV írás/olvasás

@@ -1,0 +1,84 @@
+# ============================================================
+# Meetily Snapdragon - .gitignore
+# ============================================================
+
+# Environment variables (SOHA ne commitolj API kulcsokat!)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Node
+node_modules/
+.next/
+out/
+
+# Database (SQLite)
+*.db
+*.sqlite
+*.sqlite3
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.lnk
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+
+# Build artifacts
+*.whl
+*.so
+*.pyd
+*.dll
+
+# AI model files (nagy fájlok, nem kellenek repoba)
+*.bin
+*.onnx
+*.gguf
+*.pt
+*.ggml
+*.qnn
+models/
+*.safetensors
+
+# Logs
+*.log
+logs/
+
+# Claude agent files
+.claude/
+
+# Upstream fork eredeti kód
+_upstream/
+
+# Privát fejlesztői fájlok (API kulcsokat / személyes adatokat tartalmaznak)
+CLAUDE_CODE_PROMPT.md
+memoria.md
+
+# Temporary
+*.tmp
+*.bak
+*.cache
+
+# OS specific (Windows)
+$RECYCLE.BIN/
+System Volume Information/
