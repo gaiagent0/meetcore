@@ -47,6 +47,27 @@ try:
 except ImportError as e:
     logger.warning(f"NPU routes nem elérhető: {e}")
 
+try:
+    from live_asr import live_router
+    app.include_router(live_router, tags=["LiveASR"])
+    logger.info("✓ LiveASR router betöltve")
+except ImportError as e:
+    logger.warning(f"LiveASR routes nem elérhető: {e}")
+
+try:
+    from tts_routes import tts_router
+    app.include_router(tts_router)
+    logger.info("✓ TTS router betöltve")
+except ImportError as e:
+    logger.warning(f"TTS routes nem elérhető: {e}")
+
+try:
+    from chat_routes import chat_router
+    app.include_router(chat_router)
+    logger.info("✓ Chat router betöltve")
+except ImportError as e:
+    logger.warning(f"Chat routes nem elérhető: {e}")
+
 # ── DB ────────────────────────────────────────────────────────────────────────
 try:
     from db import DatabaseManager
@@ -56,7 +77,7 @@ except Exception as e:
     db = None
     logger.warning(f"db.py nem elérhető: {e}")
 
-SUPPORTED_PROVIDERS = {"npu", "ollama", "nexa", "claude", "groq", "openai", "openrouter"}
+SUPPORTED_PROVIDERS = {"npu", "ollama", "nexa", "omnineural", "claude", "groq", "openai", "openrouter"}
 CLOUD_PROVIDERS     = {"claude", "groq", "openai", "openrouter"}
 
 # ── Request modellek ──────────────────────────────────────────────────────────
@@ -451,6 +472,16 @@ async def save_transcript(req: SaveTranscriptRequest):
         except Exception as e:
             logger.warning(f"summary mentés: {e}")
     return {"success": True, "meeting_id": meeting_id}
+
+
+@app.get("/search-meetings", tags=["Meetings"])
+async def search_meetings(q: str, limit: int = 5):
+    """BM25 keresés a meeting összefoglalók felett."""
+    if db is None:
+        raise HTTPException(status_code=503, detail="Adatbázis nem elérhető")
+    from rag_service import search_meetings as _search
+    results = await _search(db, q, limit=limit)
+    return {"query": q, "results": results, "count": len(results)}
 
 
 @app.get("/get-meetings", tags=["Meetings"])

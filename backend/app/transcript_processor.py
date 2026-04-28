@@ -51,9 +51,11 @@ GENIE_TIMEOUT  = float(os.getenv("GENIE_TIMEOUT", "120"))
 OLLAMA_HOST    = _normalize_url(os.getenv("OLLAMA_HOST", ""), "http://127.0.0.1:11434")
 OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "600"))
 
-NEXA_BASE_URL  = _normalize_url(os.getenv("NEXA_BASE_URL", ""), "http://127.0.0.1:18181/v1")
-NEXA_TIMEOUT   = float(os.getenv("NEXA_TIMEOUT", "300"))
-NEXA_LLM_MODEL = os.getenv("NEXA_LLM_MODEL", "NexaAI/Qwen3-8B-NPU")
+NEXA_BASE_URL       = _normalize_url(os.getenv("NEXA_BASE_URL", ""), "http://127.0.0.1:18181/v1")
+NEXA_TIMEOUT        = float(os.getenv("NEXA_TIMEOUT", "300"))
+NEXA_LLM_MODEL      = os.getenv("NEXA_LLM_MODEL", "NexaAI/Qwen3-8B-NPU")
+NEXA_MULTIMODAL_URL = _normalize_url(os.getenv("NEXA_MULTIMODAL_URL", ""), "http://127.0.0.1:18183/v1")
+OMNINEURAL_MODEL    = os.getenv("OMNINEURAL_MODEL", "NexaAI/OmniNeural-4B")
 
 
 CLAUDE_API_KEY     = os.getenv("CLAUDE_API_KEY", "")
@@ -103,6 +105,8 @@ def _get_model_family(model_name: str) -> str:
     m = model_name.lower()
     if any(k in m for k in ("deepseek", "qwq")):
         return "reasoning"      # R1/QwQ: no system prompt, XML tags, temp=0.6
+    if any(k in m for k in ("omnineural", "omni-neural")):
+        return "omnineural"     # OmniNeural-4B: multimodális, tömör
     if any(k in m for k in ("npu", "nexa")):
         return "nexa_npu"       # Ultra-compact: every token is slow
     if any(k in m for k in ("qwen3", "qwen3.5", "qwq-plus")):
@@ -225,6 +229,16 @@ def _build_extraction_prompts(
             "TEENDŐK: [action items with owners, or NINCS]\n"
             "KÖVETKEZŐ LÉPÉSEK: [next steps or meeting, or NINCS]\n\n"
             f"<transcript>\n{chunk}\n</transcript>"
+        )
+
+    elif family == "omnineural":
+        # ── OmniNeural-4B ────────────────────────────────────────────────────
+        # Multimodális modell: szöveges kontextusban is hatékony, tömör utasítás
+        return (
+            "Meeting összefoglaló asszisztens. Magyar nyelven, tömören.",
+            f"Foglald össze MAGYARUL az alábbi meeting-átírást!\n\n"
+            "RÉSZTVEVŐK:\nÖSSZEFOGLALÓ:\nHATÁRIDŐK:\nDÖNTÉSEK:\nTEENDŐK:\nKÖVETKEZŐ LÉPÉSEK:\n\n"
+            f"{chunk}"
         )
 
     else:
@@ -814,6 +828,12 @@ class TranscriptProcessor:
                 "model":model_name or NEXA_LLM_MODEL,
                 "timeout":NEXA_TIMEOUT,"label":"NexaLLM","no_think":True,"num_ctx":8192,
             },
+            "omnineural": {
+                "mode":"local_twostep","chunk_size":LOCAL_CHUNK,"overlap":200,
+                "base_url":NEXA_MULTIMODAL_URL,"api_key":"local",
+                "model":model_name or OMNINEURAL_MODEL,
+                "timeout":NEXA_TIMEOUT,"label":"OmniNeural","no_think":False,"num_ctx":4096,
+            },
             "npu": {
                 "mode":"local_twostep","chunk_size":LOCAL_CHUNK,"overlap":200,
                 "base_url":GENIE_BASE_URL,"api_key":"local",
@@ -847,6 +867,9 @@ class TranscriptProcessor:
 
         if provider not in PROVIDER_CFG:
             raise ValueError(f"Ismeretlen provider: '{provider}'")
+
+        if provider == "omnineural" and not cfg.get("model"):
+            cfg["model"] = OMNINEURAL_MODEL
 
         cfg = PROVIDER_CFG[provider]
 
@@ -958,14 +981,28 @@ async def check_nexa_health() -> dict:
         return {"online":False,"error":str(e),"url":NEXA_BASE_URL}
     return {"online":False,"url":NEXA_BASE_URL}
 
+async def check_omnineural_health() -> dict:
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as c:
+            r = await c.get(f"{NEXA_MULTIMODAL_URL}/models")
+            if r.status_code == 200:
+                return {"online": True, "models": [m["id"] for m in r.json().get("data", [])], "url": NEXA_MULTIMODAL_URL}
+    except Exception as e:
+        return {"online": False, "error": str(e), "url": NEXA_MULTIMODAL_URL}
+    return {"online": False, "url": NEXA_MULTIMODAL_URL}
+
 async def check_all_providers() -> dict:
-    genie, ollama, nexa = await asyncio.gather(
-        check_genie_health(), check_ollama_health(), check_nexa_health(), return_exceptions=True)
+    genie, ollama, nexa, omnineural = await asyncio.gather(
+        check_genie_health(), check_ollama_health(), check_nexa_health(), check_omnineural_health(),
+        return_exceptions=True)
     def _s(r): return {"online":False,"error":str(r)} if isinstance(r,Exception) else r
     return {
-        "npu":_s(genie),"ollama":_s(ollama),"nexa":_s(nexa),
-        "claude":    {"online":bool(CLAUDE_API_KEY),"models":["claude-3-5-haiku-20241022","claude-3-5-sonnet-20241022"],"url":"https://api.anthropic.com"},
-        "groq":      {"online":bool(GROQ_API_KEY),"models":["llama-3.3-70b-versatile","llama-3.1-8b-instant"],"url":"https://api.groq.com"},
-        "openai":    {"online":bool(OPENAI_API_KEY),"models":["gpt-4o-mini","gpt-4o"],"url":"https://api.openai.com"},
-        "openrouter":{"online":bool(OPENROUTER_API_KEY),"models":["meta-llama/llama-3.3-70b-instruct"],"url":"https://openrouter.ai"},
+        "npu":        _s(genie),
+        "ollama":     _s(ollama),
+        "nexa":       _s(nexa),
+        "omnineural": _s(omnineural),
+        "claude":     {"online":bool(CLAUDE_API_KEY),"models":["claude-3-5-haiku-20241022","claude-3-5-sonnet-20241022"],"url":"https://api.anthropic.com"},
+        "groq":       {"online":bool(GROQ_API_KEY),"models":["llama-3.3-70b-versatile","llama-3.1-8b-instant"],"url":"https://api.groq.com"},
+        "openai":     {"online":bool(OPENAI_API_KEY),"models":["gpt-4o-mini","gpt-4o"],"url":"https://api.openai.com"},
+        "openrouter": {"online":bool(OPENROUTER_API_KEY),"models":["meta-llama/llama-3.3-70b-instruct"],"url":"https://openrouter.ai"},
     }

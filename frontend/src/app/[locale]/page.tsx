@@ -9,6 +9,8 @@ import AudioLevelMeter from '@/components/AudioLevelMeter';
 import ProviderSelector from '@/components/ProviderSelector';
 import ApiKeySettings from '@/components/ApiKeySettings';
 import { useState, useRef, useCallback, useEffect } from 'react';
+import LiveTranscript from '@/components/LiveTranscript';
+import TtsPlayer from '@/components/TtsPlayer';
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'processing';
 
@@ -46,6 +48,8 @@ export default function Home() {
   // Átirat kész → összefoglaló manuálisan indítható
   const [transcriptReady, setTranscriptReady]     = useState(false);
   const [summaryGenerating, setSummaryGenerating] = useState(false);
+  const [liveMode, setLiveMode] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState<string>('');
   const pendingTranscriptRef = useRef<string>('');
   const pendingMeetingIdRef  = useRef<string>('');
 
@@ -65,6 +69,13 @@ export default function Home() {
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [recordingState]);
+
+  useEffect(() => {
+    if (liveMode && liveTranscript) {
+      setTranscriptReady(true);
+      setSummaryStatus(`✅ Élő átirat: ${liveTranscript.length} karakter — Válassz providert és generálj összefoglalót.`);
+    }
+  }, [liveMode, liveTranscript]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -270,51 +281,90 @@ export default function Home() {
         <div>
           {/* Felvétel */}
           <section style={{ marginBottom: '1.5rem', padding: '1.25rem', borderRadius: '12px', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb' }}>
-            <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>{th('recordingSection')}</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1.1rem' }}>{th('recordingSection')}</h2>
+              <div style={{ display: 'flex', gap: '0', border: '1px solid #d1d5db', borderRadius: '7px', overflow: 'hidden', fontSize: '0.8rem' }}>
+                <button
+                  onClick={() => setLiveMode(false)}
+                  style={{ padding: '0.3rem 0.8rem', border: 'none', cursor: 'pointer', backgroundColor: !liveMode ? '#2563eb' : '#fff', color: !liveMode ? '#fff' : '#374151', fontWeight: !liveMode ? 700 : 400 }}
+                >
+                  Fájl / Rögzítés
+                </button>
+                <button
+                  onClick={() => setLiveMode(true)}
+                  style={{ padding: '0.3rem 0.8rem', border: 'none', cursor: 'pointer', backgroundColor: liveMode ? '#16a34a' : '#fff', color: liveMode ? '#fff' : '#374151', fontWeight: liveMode ? 700 : 400 }}
+                >
+                  🔴 Élő átírás
+                </button>
+              </div>
+            </div>
 
-            <p style={{ color: '#6b7280', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
-              {recordingState === 'idle' ? 'Nincs aktív felvétel' :
-               recordingState === 'recording' ? `Felvétel folyamatban... ${fmtTime(elapsed)}` :
-               recordingState === 'processing' ? '⏳ Feldolgozás...' : ''}
-            </p>
+            {!liveMode && (
+              <>
+                <p style={{ color: '#6b7280', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
+                  {recordingState === 'idle' ? 'Nincs aktív felvétel' :
+                   recordingState === 'recording' ? `Felvétel folyamatban... ${fmtTime(elapsed)}` :
+                   recordingState === 'processing' ? '⏳ Feldolgozás...' : ''}
+                </p>
 
-            {recordingState === 'recording' && streamRef.current && (
-              <div style={{ marginBottom: '0.75rem', padding: '0.75rem', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-                <AudioLevelMeter stream={streamRef.current} isActive barCount={24} />
+                {recordingState === 'recording' && streamRef.current && (
+                  <div style={{ marginBottom: '0.75rem', padding: '0.75rem', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                    <AudioLevelMeter stream={streamRef.current} isActive barCount={24} />
+                  </div>
+                )}
+
+                {summaryStatus && (
+                  <div style={{ marginBottom: '0.75rem', padding: '0.6rem 0.9rem', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px', fontSize: '0.85rem', color: '#0369a1', whiteSpace: 'pre-line' }}>
+                    {summaryStatus}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  {recordingState === 'idle' && (
+                    <button onClick={startRecording}
+                      style={{ padding: '0.65rem 1.25rem', borderRadius: '8px', backgroundColor: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                      🎙️ {tr('start')}
+                    </button>
+                  )}
+                  {recordingState === 'recording' && (
+                    <button onClick={stopRecording}
+                      style={{ padding: '0.65rem 1.25rem', borderRadius: '8px', backgroundColor: '#4b5563', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                      ⏹ {tr('stop')}
+                    </button>
+                  )}
+                  {recordingState === 'processing' && (
+                    <span style={{ padding: '0.65rem 1.25rem', color: '#6b7280' }}>⏳ {ts('generating')}</span>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Fájl feltöltés — csak nem-élő módban */}
+            {!liveMode && (
+              <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
+                <p style={{ marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.875rem' }}>{th('uploadLabel')}</p>
+                <input ref={fileInputRef} type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm" onChange={handleFileUpload} />
+                {uploadStatus && <p style={{ color: '#6b7280', marginTop: '0.4rem', fontSize: '0.85rem' }}>{uploadStatus}</p>}
               </div>
             )}
 
-            {/* Státusz üzenet */}
-            {summaryStatus && (
-              <div style={{ marginBottom: '0.75rem', padding: '0.6rem 0.9rem', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px', fontSize: '0.85rem', color: '#0369a1', whiteSpace: 'pre-line' }}>
-                {summaryStatus}
+            {/* Élő átírás panel */}
+            {liveMode && (
+              <div style={{ marginTop: '0.75rem' }}>
+                <LiveTranscript
+                  backendUrl={BACKEND_URL}
+                  onTranscriptUpdate={(text) => {
+                    setLiveTranscript(text);
+                    pendingTranscriptRef.current = text;
+                  }}
+                />
+                {liveTranscript && (
+                  <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.9rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', fontSize: '0.8rem', color: '#166534' }}>
+                    {liveTranscript.length} karakter rögzítve — állítsd le a rögzítést, majd generálj összefoglalót.
+                  </div>
+                )}
               </div>
             )}
-
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              {recordingState === 'idle' && (
-                <button onClick={startRecording}
-                  style={{ padding: '0.65rem 1.25rem', borderRadius: '8px', backgroundColor: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
-                  🎙️ {tr('start')}
-                </button>
-              )}
-              {recordingState === 'recording' && (
-                <button onClick={stopRecording}
-                  style={{ padding: '0.65rem 1.25rem', borderRadius: '8px', backgroundColor: '#4b5563', color: '#fff', border: 'none', cursor: 'pointer' }}>
-                  ⏹ {tr('stop')}
-                </button>
-              )}
-              {recordingState === 'processing' && (
-                <span style={{ padding: '0.65rem 1.25rem', color: '#6b7280' }}>⏳ {ts('generating')}</span>
-              )}
-            </div>
-
-            {/* Fájl feltöltés */}
-            <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
-              <p style={{ marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.875rem' }}>{th('uploadLabel')}</p>
-              <input ref={fileInputRef} type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm" onChange={handleFileUpload} />
-              {uploadStatus && <p style={{ color: '#6b7280', marginTop: '0.4rem', fontSize: '0.85rem' }}>{uploadStatus}</p>}
-            </div>
           </section>
 
           {/* Összefoglaló gomb — átirat kész, de generálás még nem indult */}
@@ -357,7 +407,15 @@ export default function Home() {
 
           {/* Átirat */}
           <section style={{ padding: '1.25rem', borderRadius: '12px', backgroundColor: '#fff', border: '1px solid #e5e7eb' }}>
-            <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>{tt('title')}</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1.1rem' }}>{tt('title')}</h2>
+              {(transcriptSegments.length > 0 || liveTranscript) && (
+                <TtsPlayer
+                  text={liveTranscript || transcriptSegments.map(s => s.text).join(' ')}
+                  backendUrl={BACKEND_URL}
+                />
+              )}
+            </div>
             <TranscriptView
               segments={transcriptSegments}
               isRecording={recordingState === 'recording'}

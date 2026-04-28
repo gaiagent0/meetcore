@@ -20,6 +20,7 @@ const BASE_PROVIDERS: Omit<ProviderConfig, 'models' | 'online'>[] = [
   { id: 'npu',        label: 'NPU (GenieAPI)',     icon: '🖥️', description: 'Qualcomm Hexagon NPU — offline, <5W',      isCloud: false },
   { id: 'ollama',     label: 'Ollama (CPU/GPU)',   icon: '🤖', description: 'Helyi Ollama — offline, CPU/GPU',           isCloud: false },
   { id: 'nexa',       label: 'NexaAI',             icon: '🦜', description: 'NexaAI szerver — NPU modellek',            isCloud: false },
+  { id: 'omnineural', label: 'OmniNeural-4B',     icon: '🧠', description: 'Multimodális NPU — szöveg + hang (:18183)', isCloud: false },
   // ── Felhős ───────────────────────────────────────────────────────────────
   { id: 'claude',     label: 'Claude (Anthropic)', icon: '🧠', description: 'Anthropic Claude — API kulcs kell',        isCloud: true  },
   { id: 'groq',       label: 'Groq',               icon: '⚡', description: 'Groq gyors inferencia — API kulcs kell',  isCloud: true  },
@@ -34,9 +35,12 @@ const GROQ_MODELS      = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mi
 const OPENAI_MODELS    = ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo'];
 const OR_MODELS        = ['meta-llama/llama-3.3-70b-instruct', 'google/gemini-flash-1.5', 'anthropic/claude-3.5-haiku'];
 
+const OMNINEURAL_MODELS = ['NexaAI/OmniNeural-4B'];
+
 const STATIC_MODELS: Record<string, string[]> = {
   npu: NPU_MODELS, claude: CLAUDE_MODELS,
   groq: GROQ_MODELS, openai: OPENAI_MODELS, openrouter: OR_MODELS,
+  omnineural: OMNINEURAL_MODELS,
 };
 
 interface ProviderSelectorProps {

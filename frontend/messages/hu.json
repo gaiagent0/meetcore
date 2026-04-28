@@ -59,7 +59,8 @@
     "groq": "Groq",
     "openai": "OpenAI",
     "openrouter": "OpenRouter",
-    "nexa": "NexaAI Parakeet (helyi)"
+    "nexa": "NexaAI Parakeet (helyi)",
+    "omnineural": "OmniNeural-4B (multimodális NPU)"
   },
   "npu": {
     "status": "NPU státusz",
@@ -128,6 +129,13 @@
     "shortcutsTitle": "Tippek",
     "shortcutEsc": "Esc – bezárja az útmutatót",
     "shortcutBat": "Groq provider – leggyorsabb felhős összefoglaló"
+  },
+  "live": {
+    "connecting": "Csatlakozás...",
+    "startRecording": "Élő rögzítés",
+    "stopRecording": "Leállítás",
+    "liveTranscribing": "Élő átírás...",
+    "noSegmentsYet": "Indítsd el a rögzítést az élő átíráshoz"
   },
   "providerSelector": {
     "title": "AI szolgáltató",

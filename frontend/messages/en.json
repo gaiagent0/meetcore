@@ -59,7 +59,8 @@
     "groq": "Groq",
     "openai": "OpenAI",
     "openrouter": "OpenRouter",
-    "nexa": "NexaAI (local)"
+    "nexa": "NexaAI (local)",
+    "omnineural": "OmniNeural-4B (multimodal NPU)"
   },
   "npu": {
     "status": "NPU Status",
@@ -128,6 +129,13 @@
     "shortcutsTitle": "Tips",
     "shortcutEsc": "Esc – closes this guide",
     "shortcutBat": "Groq provider – fastest cloud summary"
+  },
+  "live": {
+    "connecting": "Connecting...",
+    "startRecording": "Live recording",
+    "stopRecording": "Stop",
+    "liveTranscribing": "Live transcription...",
+    "noSegmentsYet": "Start recording for live transcription"
   },
   "providerSelector": {
     "title": "AI Provider",
