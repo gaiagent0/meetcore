@@ -11,6 +11,7 @@ import ApiKeySettings from '@/components/ApiKeySettings';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import LiveTranscript from '@/components/LiveTranscript';
 import TtsPlayer from '@/components/TtsPlayer';
+import NexaServicePanel from '@/components/NexaServicePanel';
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'processing';
 
@@ -273,6 +274,7 @@ export default function Home() {
       {/* Provider státusz */}
       <section style={{ marginBottom: '1.5rem' }}>
         <NPUStatus />
+        <NexaServicePanel />
       </section>
 
       {/* Fő layout */}
