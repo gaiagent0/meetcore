@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 import httpx
+import pydantic
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from transcript_processor import (
@@ -250,10 +251,49 @@ except ImportError as _e:
     logger.warning(f"nexa_manager nem elérhető: {_e}")
     _nexa_manager_ok = False
 
+_NEXA_DATADIR_KEY    = "nexa_datadir"
+_NEXA_DATADIR_DEFAULT = r"E:\models-nexa"
+
+
+async def _get_db():
+    try:
+        from db import DatabaseManager
+        return DatabaseManager()
+    except Exception:
+        return None
+
+
+@npu_router.get("/nexa/datadir", summary="Nexa model könyvtár lekérdezése")
+async def nexa_get_datadir():
+    db = await _get_db()
+    if db:
+        saved = await db.get_app_setting(_NEXA_DATADIR_KEY)
+        if saved:
+            return {"path": saved, "source": "db"}
+    env_val = os.getenv("NEXA_DATADIR")
+    if env_val:
+        return {"path": env_val, "source": "env"}
+    return {"path": _NEXA_DATADIR_DEFAULT, "source": "default"}
+
+
+class NexaDirRequest(pydantic.BaseModel):
+    path: str
+
+
+@npu_router.post("/nexa/datadir", summary="Nexa model könyvtár beállítása")
+async def nexa_set_datadir(req: NexaDirRequest):
+    path = req.path.strip()
+    if not path:
+        raise HTTPException(status_code=400, detail="Az el��rési út nem lehet üres")
+    db = await _get_db()
+    if db is None:
+        raise HTTPException(status_code=503, detail="Adatbázis nem elérhető")
+    await db.save_app_setting(_NEXA_DATADIR_KEY, path)
+    return {"ok": True, "path": path}
+
 
 @npu_router.get("/nexa/services", summary="Nexa szolgáltatások státusza")
 async def nexa_services_status():
-    """Visszaadja az összes kezelt Nexa szolgáltatás állapotát (managed + HTTP health)."""
     if not _nexa_manager_ok:
         raise HTTPException(status_code=503, detail="nexa_manager modul nem elérhető")
     return await _nexa_status_all()
@@ -261,13 +301,14 @@ async def nexa_services_status():
 
 @npu_router.post("/nexa/services/{name}/start", summary="Nexa szolgáltatás indítása")
 async def nexa_service_start(name: str):
-    """
-    Elindítja a megadott Nexa szolgáltatást (asr | llm | multimodal).
-    Subprocess háttérben; azonnali pid visszaadás.
-    """
     if not _nexa_manager_ok:
         raise HTTPException(status_code=503, detail="nexa_manager modul nem elérhető")
-    result = _nexa_start(name)
+    db = await _get_db()
+    datadir = None
+    if db:
+        saved = await db.get_app_setting(_NEXA_DATADIR_KEY)
+        datadir = saved or os.getenv("NEXA_DATADIR") or _NEXA_DATADIR_DEFAULT
+    result = _nexa_start(name, datadir=datadir)
     if not result["ok"]:
         raise HTTPException(status_code=400, detail=result["message"])
     return result
@@ -275,7 +316,6 @@ async def nexa_service_start(name: str):
 
 @npu_router.post("/nexa/services/{name}/stop", summary="Nexa szolgáltatás leállítása")
 async def nexa_service_stop(name: str):
-    """Leállítja a megadott Nexa szolgáltatást (terminate → kill fallback)."""
     if not _nexa_manager_ok:
         raise HTTPException(status_code=503, detail="nexa_manager modul nem elérhető")
     return _nexa_stop(name)

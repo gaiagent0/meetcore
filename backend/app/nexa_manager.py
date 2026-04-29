@@ -101,7 +101,7 @@ async def status_all() -> dict:
     return results
 
 
-def start_service(name: str) -> dict:
+def start_service(name: str, datadir: str | None = None) -> dict:
     """
     Nexa szerver indítása háttérben subprocessként.
     Visszatér: {"ok": bool, "pid": int|None, "message": str}
@@ -126,7 +126,7 @@ def start_service(name: str) -> dict:
     logger.info(f"[NexaManager] Indítás: {' '.join(cmd)}")
 
     env = os.environ.copy()
-    nexa_datadir = os.getenv("NEXA_DATADIR", r"E:\models-nexa")
+    nexa_datadir = datadir or os.getenv("NEXA_DATADIR", r"E:\models-nexa")
     env["NEXA_DATADIR"] = nexa_datadir
     logger.info(f"[NexaManager] NEXA_DATADIR={nexa_datadir}")
 

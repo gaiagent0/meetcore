@@ -157,6 +157,13 @@ class DatabaseManager:
                 )
             """)
 
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS app_settings (
+                    key   TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+
             conn.commit()
 
     @asynccontextmanager
@@ -975,5 +982,23 @@ class DatabaseManager:
             logger.error(f"Error updating meeting summary: {str(e)}")
             raise
 
-   
+    async def get_app_setting(self, key: str, default: str = "") -> str:
+        try:
+            async with self._get_connection() as conn:
+                cursor = await conn.execute("SELECT value FROM app_settings WHERE key = ?", (key,))
+                row = await cursor.fetchone()
+                return row[0] if row else default
+        except Exception as e:
+            logger.warning(f"get_app_setting({key}): {e}")
+            return default
+
+    async def save_app_setting(self, key: str, value: str) -> None:
+        async with self._get_connection() as conn:
+            await conn.execute(
+                "INSERT INTO app_settings (key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (key, value),
+            )
+            await conn.commit()
+
 

@@ -22,10 +22,16 @@ const SERVICE_ICONS: Record<string, string> = {
 };
 
 export default function NexaServicePanel() {
-  const [services,  setServices]  = useState<ServicesState | null>(null);
-  const [actions,   setActions]   = useState<ActionState>({});
-  const [error,     setError]     = useState<string | null>(null);
-  const [open,      setOpen]      = useState(false);
+  const [services,   setServices]   = useState<ServicesState | null>(null);
+  const [actions,    setActions]    = useState<ActionState>({});
+  const [error,      setError]      = useState<string | null>(null);
+  const [open,       setOpen]       = useState(false);
+
+  // datadir state
+  const [datadir,    setDatadir]    = useState('');
+  const [dirInput,   setDirInput]   = useState('');
+  const [dirSaving,  setDirSaving]  = useState(false);
+  const [dirMsg,     setDirMsg]     = useState<{ ok: boolean; text: string } | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -38,24 +44,63 @@ export default function NexaServicePanel() {
     }
   }, []);
 
+  const fetchDatadir = useCallback(async () => {
+    try {
+      const r = await fetch(`${BACKEND_URL}/npu/nexa/datadir`, { signal: AbortSignal.timeout(5000) });
+      if (!r.ok) return;
+      const d = await r.json();
+      setDatadir(d.path ?? '');
+      setDirInput(d.path ?? '');
+    } catch { /* silent */ }
+  }, []);
+
   useEffect(() => {
     fetchStatus();
+    fetchDatadir();
     const iv = setInterval(fetchStatus, 10_000);
     return () => clearInterval(iv);
-  }, [fetchStatus]);
+  }, [fetchStatus, fetchDatadir]);
 
   const handleAction = async (name: string, action: 'start' | 'stop') => {
     setActions(a => ({ ...a, [name]: action === 'start' ? 'starting' : 'stopping' }));
     try {
-      await fetch(`${BACKEND_URL}/npu/nexa/services/${name}/${action}`, { method: 'POST', signal: AbortSignal.timeout(8000) });
-      // Kis várakozás, utána frissítjük a státuszt
+      await fetch(`${BACKEND_URL}/npu/nexa/services/${name}/${action}`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(8000),
+      });
       setTimeout(fetchStatus, 1500);
-    } catch { /* silent — fetchStatus majd jelzi */ }
+    } catch { /* silent */ }
     setActions(a => ({ ...a, [name]: null }));
+  };
+
+  const saveDatadir = async () => {
+    const path = dirInput.trim();
+    if (!path || path === datadir) return;
+    setDirSaving(true);
+    setDirMsg(null);
+    try {
+      const r = await fetch(`${BACKEND_URL}/npu/nexa/datadir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path }),
+        signal: AbortSignal.timeout(6000),
+      });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        setDirMsg({ ok: false, text: e.detail ?? `HTTP ${r.status}` });
+      } else {
+        setDatadir(path);
+        setDirMsg({ ok: true, text: 'Mentve — következő indításkor érvényes' });
+      }
+    } catch (e: any) {
+      setDirMsg({ ok: false, text: e.message });
+    }
+    setDirSaving(false);
   };
 
   const onlineCount = services ? Object.values(services).filter(s => s.online).length : 0;
   const totalCount  = services ? Object.keys(services).length : 3;
+  const dirChanged  = dirInput.trim() !== datadir;
 
   return (
     <div style={{ marginTop: '0.75rem' }}>
@@ -84,6 +129,39 @@ export default function NexaServicePanel() {
 
       {open && (
         <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+
+          {/* Model könyvtár beállítás */}
+          <div style={{ padding: '0.6rem 0.75rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '0.3rem' }}>
+              📁 Model könyvtár (NEXA_DATADIR)
+            </label>
+            <div style={{ display: 'flex', gap: '0.4rem' }}>
+              <input
+                value={dirInput}
+                onChange={e => { setDirInput(e.target.value); setDirMsg(null); }}
+                onKeyDown={e => e.key === 'Enter' && saveDatadir()}
+                placeholder="pl. E:\models-nexa"
+                style={{
+                  flex: 1, padding: '0.3rem 0.5rem', borderRadius: '5px', fontSize: '0.78rem',
+                  border: `1px solid ${dirChanged ? '#93c5fd' : '#d1d5db'}`,
+                  fontFamily: 'monospace', outline: 'none', backgroundColor: '#fff',
+                }}
+              />
+              <button
+                onClick={saveDatadir}
+                disabled={dirSaving || !dirChanged}
+                style={btnStyle('#eff6ff', '#2563eb', '#bfdbfe', dirSaving || !dirChanged)}
+              >
+                {dirSaving ? '⏳' : 'Mentés'}
+              </button>
+            </div>
+            {dirMsg && (
+              <p style={{ margin: '0.25rem 0 0', fontSize: '0.7rem', color: dirMsg.ok ? '#166534' : '#dc2626' }}>
+                {dirMsg.ok ? '✓' : '✗'} {dirMsg.text}
+              </p>
+            )}
+          </div>
+
           {error && (
             <div style={{ fontSize: '0.75rem', color: '#dc2626', padding: '0.35rem 0.6rem', backgroundColor: '#fee2e2', borderRadius: '6px' }}>
               {error}
@@ -109,13 +187,11 @@ export default function NexaServicePanel() {
                   border: `1px solid ${isOn ? '#bbf7d0' : '#e5e7eb'}`,
                 }}
               >
-                {/* Status dot */}
                 <span style={{
                   width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
                   backgroundColor: isOn ? '#22c55e' : '#d1d5db',
                 }} />
 
-                {/* Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#111827' }}>
                     {icon} {svc.label}
@@ -130,21 +206,12 @@ export default function NexaServicePanel() {
                   </div>
                 </div>
 
-                {/* Start / Stop gomb */}
                 {isOn ? (
-                  <button
-                    onClick={() => handleAction(name, 'stop')}
-                    disabled={!!busy}
-                    style={btnStyle('#fee2e2', '#ef4444', '#fecdd3', !!busy)}
-                  >
+                  <button onClick={() => handleAction(name, 'stop')} disabled={!!busy} style={btnStyle('#fee2e2', '#ef4444', '#fecdd3', !!busy)}>
                     {busy === 'stopping' ? '⏳' : '■ Stop'}
                   </button>
                 ) : (
-                  <button
-                    onClick={() => handleAction(name, 'start')}
-                    disabled={!!busy}
-                    style={btnStyle('#eff6ff', '#2563eb', '#bfdbfe', !!busy)}
-                  >
+                  <button onClick={() => handleAction(name, 'start')} disabled={!!busy} style={btnStyle('#eff6ff', '#2563eb', '#bfdbfe', !!busy)}>
                     {busy === 'starting' ? '⏳' : '▶ Start'}
                   </button>
                 )}
