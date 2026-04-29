@@ -5,6 +5,7 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   // outputFileTracingRoot: gyökér workspace warning elnyomása
   outputFileTracingRoot: require('path').join(__dirname),
 };

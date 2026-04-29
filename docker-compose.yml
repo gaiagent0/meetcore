@@ -1,0 +1,39 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "5167:5167"
+    volumes:
+      - ./data:/app/data
+    environment:
+      GENIE_BASE_URL: http://host.docker.internal:8912/v1
+      GENIE_MODEL: llama3.1-8b-8380-qnn2.38
+      GENIE_TIMEOUT: "120"
+      OLLAMA_HOST: http://host.docker.internal:11434
+      OLLAMA_TIMEOUT: "300"
+      NEXA_BASE_URL: http://host.docker.internal:18181/v1
+      NEXA_TIMEOUT: "300"
+      WHISPER_LANGUAGE: hu
+      DATABASE_PATH: /app/data/meeting_minutes.db
+      BACKEND_PORT: "5167"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5167/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_BACKEND_URL: http://localhost:5167
+    ports:
+      - "3118:3118"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
