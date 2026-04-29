@@ -125,9 +125,14 @@ def start_service(name: str) -> dict:
     cmd = [nexa_bin, "serve", cfg["model"], "--port", str(cfg["port"])]
     logger.info(f"[NexaManager] Indítás: {' '.join(cmd)}")
 
+    env = os.environ.copy()
+    nexa_datadir = os.getenv("NEXA_DATADIR", r"E:\models-nexa")
+    env["NEXA_DATADIR"] = nexa_datadir
+    logger.info(f"[NexaManager] NEXA_DATADIR={nexa_datadir}")
+
     try:
         extra = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if sys.platform == "win32" else {}
-        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **extra)
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env, **extra)
         _processes[name] = proc
         logger.info(f"[NexaManager] '{name}' PID={proc.pid}")
         return {"ok": True, "pid": proc.pid, "message": f"'{name}' indítva (PID {proc.pid})"}
