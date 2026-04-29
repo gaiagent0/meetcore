@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import NPUStatus from '@/components/NPUStatus';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import HelpModal from '@/components/HelpModal';
@@ -34,6 +34,7 @@ export default function Home() {
   const tn = useTranslations('npu');
   const th = useTranslations('home');
   const tt = useTranslations('transcript');
+  const locale = useLocale();
 
   const [recordingState, setRecordingState]       = useState<RecordingState>('idle');
   const [uploadStatus, setUploadStatus]           = useState<string | null>(null);
@@ -258,7 +259,7 @@ export default function Home() {
           <p style={{ margin: '0.2rem 0 0', color: '#6b7280', fontSize: '0.875rem' }}>{th('subtitle')}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <a href="/hu/meetings" style={{ fontSize: '0.85rem', color: '#3b82f6', textDecoration: 'none', padding: '0.35rem 0.75rem', border: '1px solid #93c5fd', borderRadius: '6px' }}>
+          <a href={`/${locale}/meetings`} style={{ fontSize: '0.85rem', color: '#3b82f6', textDecoration: 'none', padding: '0.35rem 0.75rem', border: '1px solid #93c5fd', borderRadius: '6px' }}>
             📋 {th('meetingsLink')}
           </a>
           <button onClick={() => setShowHelp(true)}
@@ -392,7 +393,7 @@ export default function Home() {
           {savedMeetingId && !transcriptReady && (
             <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: '#166534', fontSize: '0.875rem' }}>✅ Meeting összefoglalva</span>
-              <a href={`/hu/meetings/${savedMeetingId}`} style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 600, textDecoration: 'none' }}>
+              <a href={`/${locale}/meetings/${savedMeetingId}`} style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 600, textDecoration: 'none' }}>
                 Megnyitás →
               </a>
             </div>
