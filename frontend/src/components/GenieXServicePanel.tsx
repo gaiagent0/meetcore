@@ -21,7 +21,7 @@ const SERVICE_ICONS: Record<string, string> = {
   multimodal: '👁️',
 };
 
-export default function NexaServicePanel() {
+export default function GenieXServicePanel() {
   const [services,   setServices]   = useState<ServicesState | null>(null);
   const [actions,    setActions]    = useState<ActionState>({});
   const [error,      setError]      = useState<string | null>(null);
@@ -114,7 +114,7 @@ export default function NexaServicePanel() {
         }}
       >
         <span style={{ fontSize: '0.65rem', color: '#9ca3af' }}>{open ? '▲' : '▼'}</span>
-        <span style={{ fontWeight: 600 }}>⚡ Nexa Services</span>
+        <span style={{ fontWeight: 600 }}>⚡ GenieX Services</span>
         {services && (
           <span style={{
             padding: '0.1rem 0.45rem', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700,

@@ -65,18 +65,10 @@ class TestNpuStatus:
 
 class TestNpuTranscribe:
     def _transcribe(self, mock_text="teszt átírás", status_code=200, audio_bytes=b"fake_wav"):
-        mock_response = MagicMock()
-        mock_response.status_code = status_code
-        mock_response.json.return_value = {"text": mock_text}
-        mock_response.raise_for_status = MagicMock()
-
-        with patch("npu_routes.httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_cls.return_value = mock_client
-
+        # GenieX-stack Whisper-Base QNN a default backend — közvetlenül mock-oljuk
+        # a whisper_npu.transcribe_qnn függvényt (nem httpx.AsyncClient, mert az
+        # Whisper-Base QNN onnxruntime-qnn-nel dolgozik, nem hálózaton).
+        with patch("whisper_npu.transcribe_qnn", new_callable=AsyncMock, return_value=mock_text):
             client = TestClient(_make_app())
             resp = client.post(
                 "/npu/transcribe",
@@ -92,15 +84,16 @@ class TestNpuTranscribe:
 
     def test_transcribe_backend_field(self):
         resp = self._transcribe(mock_text="teszt")
-        assert resp.json()["backend"] == "nexa-parakeet"
+        assert resp.json()["backend"] == "whisper-base-qnn"
 
     def test_transcribe_503_when_nexa_offline(self):
+        # Legacy Nexa path (backend="nexa") — ha a NexaAI Parakeet offline, 503 nexa_offline
         with patch("npu_routes._transcribe_nexa", new_callable=AsyncMock, side_effect=httpx.ConnectError("refused")):
             client = TestClient(_make_app())
             resp = client.post(
                 "/npu/transcribe",
                 files={"file": ("recording.wav", b"fake", "audio/wav")},
-                data={"language": "hu"},
+                data={"language": "hu", "backend": "nexa"},
             )
         assert resp.status_code == 503
         detail = resp.json()["detail"]

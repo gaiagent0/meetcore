@@ -153,7 +153,7 @@ export default function ApiKeySettings() {
       </div>
 
       <p style={{ marginTop: '1rem', fontSize: '0.72rem', color: '#9ca3af' }}>
-        Kulcsok nélkül is használható az alkalmazás helyi (NPU / Ollama / NexaAI) providerekkel.
+        Kulcsok nélkül is használható az alkalmazás helyi (NPU / Ollama / GenieX) providerekkel.
       </p>
     </div>
   );

@@ -114,9 +114,9 @@ export default function HelpModal({ onClose }: Props) {
 
             <div style={{ display: 'grid', gap: '0.5rem' }}>
               {[
-                { icon: '🖥️', name: 'Qualcomm NPU (GenieAPIService)', port: ':8912', badge: '#dcfce7', badgeText: 'Ajánlott', desc: t('providerNpu') },
+                { icon: '🖥️', name: 'Qualcomm NPU (GenieX)', port: ':8912', badge: '#dcfce7', badgeText: 'Ajánlott', desc: t('providerNpu') },
                 { icon: '🟤', name: 'Ollama', port: ':11434', badge: '#f3f4f6', badgeText: 'Lokális', desc: t('providerOllama') },
-                { icon: '🔵', name: 'NexaAI (nexa serve)', port: ':18181', badge: '#dbeafe', badgeText: 'NPU', desc: t('providerNexa') },
+                { icon: '🔵', name: 'GenieX (geniex serve)', port: ':18181', badge: '#dbeafe', badgeText: 'NPU', desc: t('providerNexa') },
               ].map(p => (
                 <div key={p.name} style={{ padding: '0.65rem 0.85rem', borderRadius: '8px', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem' }}>
@@ -144,7 +144,7 @@ export default function HelpModal({ onClose }: Props) {
                 { url: 'http://localhost:5167/docs', label: 'Backend API (Swagger)', color: '#dcfce7' },
                 { url: 'http://localhost:5167/npu/status', label: 'Provider státusz (JSON)', color: '#dbeafe' },
                 { url: 'http://localhost:3118', label: 'Frontend', color: '#f3e8ff' },
-                { url: 'http://localhost:8912', label: 'GenieAPIService (NPU LLM)', color: '#fef9c3' },
+                { url: 'http://localhost:8912', label: 'GenieX (NPU LLM)', color: '#fef9c3' },
                 { url: 'http://localhost:18181/docs/ui', label: 'Nexa serve API docs', color: '#fce7f3' },
               ].map(s => (
                 <div key={s.url} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.5rem', borderRadius: '6px', backgroundColor: s.color }}>

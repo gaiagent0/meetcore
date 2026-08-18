@@ -1,4 +1,4 @@
-﻿"""
+"""
 transcript_processor.py — MeetCore  v2.2
 =========================================
 
@@ -44,8 +44,14 @@ def _normalize_url(raw: str, default: str) -> str:
 
 
 # ── Környezeti változók ──────────────────────────────────────────────────────
-GENIE_BASE_URL = _normalize_url(os.getenv("GENIE_BASE_URL", ""), "http://127.0.0.1:8912/v1")
-GENIE_MODEL    = os.getenv("GENIE_MODEL", "llama3.1-8b-8380-qnn2.38")
+# GenieX (Qualcomm AI Engine Direct) — OpenAI-kompatibilis szerver:
+#   geniex serve --host 0.0.0.0:18181   →  http://127.0.0.1:18181/v1
+# Modell: qualcomm/Qwen3-4B-Instruct-2507 (NPU, qairt). A GenieX qairt NEM tartalmaz
+# ASR-t (csak LLM/VLM) — ezért az ASR-t a whisper_npu.py Whisper-Base QNN-je adja.
+# Ismert GenieX hibák: #1294 (thinking <think> a content-ben) és #777 (nincs tool_calls).
+#   → no_think=True + <think> strip a transcript_processor-ben kezelve.
+GENIE_BASE_URL = _normalize_url(os.getenv("GENIE_BASE_URL", ""), "http://127.0.0.1:18181/v1")
+GENIE_MODEL    = os.getenv("GENIE_MODEL", "qualcomm/Qwen3-4B-Instruct-2507")
 GENIE_TIMEOUT  = float(os.getenv("GENIE_TIMEOUT", "120"))
 
 OLLAMA_HOST    = _normalize_url(os.getenv("OLLAMA_HOST", ""), "http://127.0.0.1:11434")
@@ -669,7 +675,7 @@ class TranscriptProcessor:
 
     async def _extract_text_local(
         self, base_url, api_key, model_name, chunk, timeout, label,
-        no_think=False, num_ctx=4096,
+        no_think=False, num_ctx=4096, drop_options=False,
     ) -> str:
         url = f"{base_url.rstrip('/')}/chat/completions"
         system_prompt, user_prompt = _build_extraction_prompts(
@@ -679,7 +685,14 @@ class TranscriptProcessor:
         # NPU: ultra-rövid num_predict (512), standard: 1024
         family = _get_model_family(model_name)
         num_predict = 512 if family == "nexa_npu" else 1024
-        temperature = 0.6 if family == "reasoning" else 0.2
+        # Hőmérséklet: reasoning/modellek szerint — Qwen3 (GenieX) 0.7-en fut a
+        # jobb minőségért (egyezik a cloud JSON útvonallal és a HF dokumentációval)
+        if family == "qwen3":
+            temperature = 0.7
+        elif family == "reasoning":
+            temperature = 0.6
+        else:
+            temperature = 0.2
 
         messages = []
         if system_prompt:
@@ -691,8 +704,11 @@ class TranscriptProcessor:
             "messages": messages,
             "temperature": temperature,
             "max_tokens": num_predict,
-            "options": {"num_ctx": num_ctx},
         }
+        # "options" (num_ctx) Ollama-specifikus mező — a GenieX OpenAI-kompatibilis
+        # szervere nem értelmezi, ezért drop_options=True esetén nem küldjük.
+        if not drop_options:
+            payload["options"] = {"num_ctx": num_ctx}
         logger.info(f"[{label}] Extrakció: model={model_name} family={family} chunk={len(chunk)}kar")
         async with httpx.AsyncClient(timeout=timeout) as c:
             resp = await c.post(
@@ -838,7 +854,16 @@ class TranscriptProcessor:
                 "mode":"local_twostep","chunk_size":LOCAL_CHUNK,"overlap":200,
                 "base_url":GENIE_BASE_URL,"api_key":"local",
                 "model":model_name or GENIE_MODEL,
-                "timeout":GENIE_TIMEOUT,"label":"GenieNPU","no_think":False,"num_ctx":4096,
+                "timeout":GENIE_TIMEOUT,"label":"GenieX-NPU","no_think":True,
+                "num_ctx":4096,"drop_options":True,
+            },
+            "geniex": {
+                # Explicit GenieX provider (alias of 'npu') — Qwen3-4B-Instruct NPU LLM.
+                "mode":"local_twostep","chunk_size":LOCAL_CHUNK,"overlap":200,
+                "base_url":GENIE_BASE_URL,"api_key":"local",
+                "model":model_name or GENIE_MODEL,
+                "timeout":GENIE_TIMEOUT,"label":"GenieX","no_think":True,
+                "num_ctx":4096,"drop_options":True,
             },
             "claude": {
                 "mode":"claude","chunk_size":10000,"overlap":500,
@@ -868,10 +893,10 @@ class TranscriptProcessor:
         if provider not in PROVIDER_CFG:
             raise ValueError(f"Ismeretlen provider: '{provider}'")
 
+        cfg = PROVIDER_CFG[provider]
+
         if provider == "omnineural" and not cfg.get("model"):
             cfg["model"] = OMNINEURAL_MODEL
-
-        cfg = PROVIDER_CFG[provider]
 
         if provider == "ollama" and not cfg.get("model"):
             cfg["model"] = await _get_ollama_default_model()
@@ -909,6 +934,7 @@ class TranscriptProcessor:
                             timeout=cfg["timeout"], label=cfg.get("label", provider),
                             no_think=cfg.get("no_think", False),
                             num_ctx=cfg.get("num_ctx", 4096),
+                            drop_options=cfg.get("drop_options", False),
                         )
                     logger.debug(f"  Extracted text preview: {extracted[:300]}")
                     result = _text_to_summary(extracted, chunk_index=i)

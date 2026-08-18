@@ -17,8 +17,8 @@
 
 ```
 FastAPI Backend (Python, port 5167)
-  ├── npu        → GenieAPIService http://127.0.0.1:8912/v1  (Qualcomm NPU)
-  ├── nexa       → NexaAI server   http://127.0.0.1:18181/v1 (NPU ASR)
+  ├── npu        → GenieX (Qualcomm AI Engine Direct) http://127.0.0.1:18181/v1  (NPU LLM/VLM)
+  ├── asr        → Whisper-Base QNN (onnxruntime-qnn) http://127.0.0.1:18181/v1 (NPU ASR)
   ├── ollama     → http://localhost:11434
   ├── claude     → Anthropic API   (key stored in SQLite DB)
   ├── groq       → Groq API        (key stored in SQLite DB)
@@ -28,11 +28,11 @@ FastAPI Backend (Python, port 5167)
 Next.js Frontend (port 3118)
   ├── ProviderSelector  — local / cloud provider switch
   ├── ApiKeySettings    — per-provider API key management UI
-  ├── NPUStatus         — GenieAPIService health indicator
+  ├── NPUStatus         — GenieX health indicator
   └── next-intl i18n    — hu / en
 
-GenieAPIService.exe (Qualcomm, port 8912)
-  └── Hexagon NPU — Llama 3.1 8B INT4, 45 TOPS, <5W
+GenieX (Qualcomm AI Engine Direct, port 18181)
+  └── Hexagon NPU — Qwen3-4B-Instruct-2507, <5W
 ```
 
 ---
@@ -57,16 +57,16 @@ DELETE /settings/api-keys/{provider}
 ## Environment Variables (`backend/app/.env`)
 
 ```env
-# Qualcomm GenieAPIService (local NPU)
-GENIE_BASE_URL=http://127.0.0.1:8912/v1
-GENIE_MODEL=llama3.1-8b-8380-qnn2.38
+# Qualcomm GenieX (local NPU, AI Engine Direct — a régi GenieAPIService helyett)
+GENIE_BASE_URL=http://127.0.0.1:18181/v1
+GENIE_MODEL=qualcomm/Qwen3-4B-Instruct-2507
 GENIE_TIMEOUT=120
 
 # Ollama (local CPU)
 OLLAMA_HOST=http://127.0.0.1:11434
 OLLAMA_TIMEOUT=300
 
-# NexaAI (NPU ASR + LLM)
+# Whisper-Base QNN (NPU ASR) + GenieX (NPU LLM)
 NEXA_BASE_URL=http://127.0.0.1:18181/v1
 NEXA_TIMEOUT=300
 PARAKEET_MODEL_PATH=<path_to_model>
@@ -147,7 +147,7 @@ pnpm dev          # http://localhost:3118
 ## Key Rules
 
 - API keys are NEVER hardcoded or committed — always via `/settings/api-keys` endpoint
-- Local providers (NPU, Ollama, NexaAI) work without any API key
+- Local providers (NPU, Ollama, Whisper-Base QNN) work without any API key
 - The app is fully functional offline with local providers only
 - `*.db` files are in `.gitignore` — never committed
 - `*.env` files (except `.env.example`) are in `.gitignore`

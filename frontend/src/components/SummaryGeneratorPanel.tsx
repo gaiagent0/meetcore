@@ -24,8 +24,8 @@ function isLLM(id: string) {
 
 const PROVIDER_META: Record<string, { label: string; icon: string; isCloud: boolean; defaultModel: string; hint: string }> = {
   ollama:     { label:'Ollama (lokális)',   icon:'🤖', isCloud:false, defaultModel:'qwen2.5:7b',             hint:'CPU/GPU · Offline · Lassabb' },
-  nexa:       { label:'NexaAI NPU',         icon:'🦜', isCloud:false, defaultModel:'NexaAI/Qwen3-8B-NPU',   hint:'Qualcomm NPU · Offline · ~60s' },
-  npu:        { label:'NPU (GenieAPI)',      icon:'🖥️', isCloud:false, defaultModel:'',                       hint:'Qualcomm Hexagon · <5W' },
+  nexa:       { label:'GenieX NPU',         icon:'🦜', isCloud:false, defaultModel:'qualcomm/Qwen3-4B-Instruct-2507',   hint:'Qualcomm NPU · Offline · ~60s' },
+  npu:        { label:'NPU (GenieX)',        icon:'🖥️', isCloud:false, defaultModel:'',                       hint:'Qualcomm Hexagon · <5W' },
   claude:     { label:'Claude (Anthropic)', icon:'🧠', isCloud:true,  defaultModel:'claude-3-5-haiku-20241022', hint:'API kulcs szükséges' },
   groq:       { label:'Groq',               icon:'⚡', isCloud:true,  defaultModel:'llama-3.3-70b-versatile', hint:'Nagyon gyors · API kulcs' },
   openai:     { label:'OpenAI',             icon:'🟢', isCloud:true,  defaultModel:'gpt-4o-mini',            hint:'API kulcs szükséges' },

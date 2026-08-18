@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 npu_router = APIRouter()
 
 GENIE_TIMEOUT = float(os.getenv("GENIE_TIMEOUT", "10"))
-GENIE_MODEL   = os.getenv("GENIE_MODEL", "llama3.1-8b-8380-qnn2.38")
+# GenieX (Qualcomm AI Engine Direct) — geniex serve --host 0.0.0.0:18181
+GENIE_MODEL   = os.getenv("GENIE_MODEL", "qualcomm/Qwen3-4B-Instruct-2507")
 
 
 # ── /npu/status ──────────────────────────────────────────────────────────────
@@ -76,24 +77,41 @@ async def list_providers():
 
 # ── /npu/transcribe ──────────────────────────────────────────────────────────
 
-@npu_router.post("/transcribe", summary="Hangfájl átírása NPU-val (NexaAI Parakeet)")
+WHISPER_BACKEND = os.getenv("WHISPER_BACKEND", "qnn").lower()  # "qnn" = GenieX-stack Whisper-Base QNN; "nexa" = legacy Nexa Parakeet
+
+
+@npu_router.post("/transcribe", summary="Hangfájl átírása NPU-val (Whisper-Base QNN)")
 async def npu_transcribe(
     file: UploadFile = File(...),
     language: str = Form(default="hu"),
     backend: str = Form(default="auto"),
 ):
     """
-    ASR pipeline: NexaAI Parakeet NPU (:18181).
-    Ha a Parakeet nem fut → 503 + instrukcióval.
-    Nincs whisper.cpp fallback (nincs konfigurálva).
+    ASR pipeline (alapértelmezett sorrend):
+      1. GenieX-stack Whisper-Base QNN (onnxruntime-qnn, Hexagon NPU) — whisper_npu.transcribe_qnn
+      2. Legacy NexaAI Parakeet NPU (:18181) — csak ha backend="nexa"
+    A GenieX qairt NEM tartalmaz ASR-t, ezért az ASR külön Whisper-Base QNN futtató.
     """
     audio_bytes = await file.read()
     filename = file.filename or "recording.webm"
+    selected = backend if backend and backend not in ("auto", "") else WHISPER_BACKEND
 
     try:
-        transcript = await _transcribe_nexa(audio_bytes, language, filename)
-        return {"text": transcript, "language": language, "backend": "nexa-parakeet"}
+        if selected == "nexa":
+            transcript = await _transcribe_nexa(audio_bytes, language, filename)
+            return {"text": transcript, "language": language, "backend": "nexa-parakeet"}
+
+        # GenieX-stack Whisper-Base QNN (Hexagon NPU) — alapértelmezett, de
+        # a transcribe_npu wrapper a WHISPER_NPU_BACKEND env alapján a whisper.cpp
+        # (cpp) fallback-re is átvált (ha "cpp"-re van állítva).
+        from whisper_npu import transcribe_npu
+        transcript = await transcribe_npu(audio_bytes, language, filename)
+        # backend név a ténylegesen használt futtató alapján
+        backend_name = "whisper-base-qnn" if (os.getenv("WHISPER_NPU_BACKEND", "qnn").lower() == "qnn") else "whisper-cpp"
+        return {"text": transcript, "language": language, "backend": backend_name}
+
     except httpx.ConnectError:
+        # Csak a legacy nexa path éri el a 18181-et hálózaton
         raise HTTPException(
             status_code=503,
             detail={
@@ -104,6 +122,15 @@ async def npu_transcribe(
                 ),
                 "port": 18181,
                 "url": NEXA_BASE_URL,
+            },
+        )
+    except RuntimeError as e:
+        # Whisper-Base QNN backend nem elérhető (onnxruntime/Device Guard/modell hiány)
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "whisper_qnn_unavailable",
+                "message": f"Whisper-Base QNN (GenieX-stack ASR) nem érhető el: {e}",
             },
         )
     except httpx.HTTPStatusError as e:
@@ -122,7 +149,7 @@ async def npu_transcribe(
 
 # ── /npu/genie/models ────────────────────────────────────────────────────────
 
-@npu_router.get("/genie/models", summary="GenieAPIService modelljei")
+@npu_router.get("/genie/models", summary="GenieX modelljei")
 async def genie_models():
     try:
         async with httpx.AsyncClient(timeout=GENIE_TIMEOUT) as client:
@@ -130,12 +157,12 @@ async def genie_models():
             r.raise_for_status()
             return r.json()
     except httpx.ConnectError:
-        raise HTTPException(status_code=503, detail=f"GenieAPIService nem érhető el: {GENIE_BASE_URL}")
+        raise HTTPException(status_code=503, detail=f"GenieX nem érhető el: {GENIE_BASE_URL}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@npu_router.post("/genie/health", summary="GenieAPIService liveness check")
+@npu_router.post("/genie/health", summary="GenieX liveness check")
 async def genie_health():
     try:
         async with httpx.AsyncClient(timeout=GENIE_TIMEOUT) as client:

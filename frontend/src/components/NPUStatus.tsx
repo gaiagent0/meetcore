@@ -24,9 +24,9 @@ interface NpuStatus {
 }
 
 const PROVIDER_META: Record<string, { label: string; icon: string; isCloud?: boolean }> = {
-  npu:        { label: 'GenieAPIService (NPU)', icon: '🖥️' },
+  npu:        { label: 'GenieX (NPU)', icon: '🖥️' },
   ollama:     { label: 'Ollama',                icon: '🤖' },
-  nexa:       { label: 'NexaAI Parakeet',       icon: '🦜' },
+  nexa:       { label: 'GenieX Parakeet',       icon: '🦜' },
   claude:     { label: 'Claude',                icon: '🧠', isCloud: true },
   groq:       { label: 'Groq',                  icon: '⚡', isCloud: true },
   openai:     { label: 'OpenAI',                icon: '🟢', isCloud: true },

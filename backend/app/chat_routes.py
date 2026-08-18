@@ -7,6 +7,7 @@ POST /chat/{meeting_id}/stream  → SSE streaming
 import json
 import logging
 import os
+import re
 import time
 import uuid
 from typing import AsyncGenerator
@@ -28,7 +29,7 @@ DEFAULT_SYSTEM = (
     "Magyar nyelven, tömören és pontosan. Ha a kontextusban nincs válasz, azt jelezd."
 )
 
-SUPPORTED_CHAT_PROVIDERS = {"npu", "ollama", "nexa", "claude", "groq", "openai", "openrouter"}
+SUPPORTED_CHAT_PROVIDERS = {"npu", "geniex", "ollama", "nexa", "claude", "groq", "openai", "openrouter"}
 
 
 class ChatRequest(BaseModel):
@@ -76,6 +77,7 @@ async def _call_llm(
 
     local_cfg: dict[str, tuple] = {
         "npu":    (GENIE_BASE_URL,         "local",  model_name or GENIE_MODEL,    GENIE_TIMEOUT),
+        "geniex": (GENIE_BASE_URL,         "local",  model_name or GENIE_MODEL,    GENIE_TIMEOUT),
         "nexa":   (NEXA_BASE_URL,          "local",  model_name or NEXA_LLM_MODEL, NEXA_TIMEOUT),
         "ollama": (OLLAMA_HOST + "/v1",    "ollama", model_name,                   OLLAMA_TIMEOUT),
     }
@@ -95,7 +97,11 @@ async def _call_llm(
                 json=payload,
             )
             resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
+        raw = resp.json()["choices"][0]["message"]["content"]
+        # GenieX Qwen3-4B (#1294): thinking szennyezés a content-ben — strip
+        if "<think>" in raw:
+            raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+        return raw
 
     # Claude — Anthropic API
     if provider == "claude":

@@ -15,9 +15,9 @@ MeetCore egy olyan desktop alkalmazás, amely **100%-ban lokálisan** működő 
 - **Hangfájl feltöltés** (WAV, MP3, M4A, stb.)
 - **Parakeet TDT ASR** NPU-n futtatva, magyar nyelvű átíráshoz
 - **AI összefoglalás** 6 különböző szolgáltatóval:
-  - 🖥️ **Qualcomm NPU** (helyi, GenieAPIService, Hexagon NPU)
+  - 🖥️ **Qualcomm NPU (GenieX), Hexagon NPU)
   - 🤖 **Ollama** (helyi, CPU/GPU)
-  - 🟠 **NexaAI** (helyi, NPU ASR)
+  - 🟠 **Whisper-Base QNN** (helyi, NPU ASR))
   - 🔵 **Claude** (Anthropic — API kulcs szükséges)
   - ⚡ **Groq** (API kulcs szükséges)
   - 🟢 **OpenAI** (API kulcs szükséges)
@@ -46,7 +46,7 @@ MeetCore egy olyan desktop alkalmazás, amely **100%-ban lokálisan** működő 
        │  API hívások       │  ASR + összefoglalás
        ▼                    ▼
 ┌─────────────────────┐  ┌────────────────────┐
-│ GenieAPIService     │  │ Parakeet ASR       │
+│ GenieX (Qwen3-4B)  │
 │ port :8911          │  │ E:\models-nexa\... │
 │ QNN NPU → LLM       │  │ NPU gyorsítás      │
 │ llama3.1-8b-qnn     │  │ magyar nyelv        │
@@ -77,7 +77,7 @@ MeetCore egy olyan desktop alkalmazás, amely **100%-ban lokálisan** működő 
 | Modell | Hely | Megjegyzés |
 |--------|------|------------|
 | **Parakeet TDT 0.6B v3 NPU** | `E:\models-nexa\models\NexaAI\parakeet-tdt-0.6b-v3-npu` | ASR (átírás) |
-| **llama3.1-8b-8380-qnn2.38** | GenieAPIService betöltve | LLM (összefoglalás) |
+| **llama3.1-8b-8380-qnn2.38** | GenieX betöltve | LLM (összefoglalás) |
 
 ---
 
@@ -171,11 +171,11 @@ scripts\start-genie-service.bat  # Csak GenieAPIService
 
 | Metode | Útvonal | Leírás |
 |--------|---------|--------|
-| GET | `/npu/status` | NPU hardver + GenieAPIService státusz |
+| GET | `/npu/status` | NPU hardver + GenieX státusz |
 | GET | `/npu/providers` | Összes provider státusza (frontend dict) |
 | POST | `/npu/transcribe` | Hangfájl → szöveg (NPU ASR) |
 | GET | `/npu/genie/models` | Elérhető NPU modellek |
-| POST | `/npu/genie/health` | GenieAPIService liveness check |
+| POST | `/npu/genie/health` | GenieX liveness check |
 | GET | `/settings/api-keys` | Cloud API kulcsok konfiguráltsága |
 | POST | `/settings/api-keys` | Cloud API kulcs mentése |
 | DELETE | `/settings/api-keys/{provider}` | Cloud API kulcs törlése |
@@ -269,7 +269,7 @@ meetily-snapdragon/
 - `.env` fájl **SOHA** nem kerül a repoba (`.gitignore` védi)
 - API kulcsok SQLite adatbázisban vannak tárolva, nem a kódban
 - CORS beállítások fejlesztésben `*`, productionben konfiguráld!
-- GenieAPIService helyi, nincs API kulcs szükséges
+- GenieX helyi, nincs API kulcs szükséges
 
 ---
 

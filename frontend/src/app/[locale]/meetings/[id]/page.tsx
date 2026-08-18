@@ -24,7 +24,7 @@ const SUMMARY_SECTIONS: { key: string; icon: string }[] = [
 const CHAT_PROVIDERS = [
   { value: 'ollama',     label: 'Ollama' },
   { value: 'npu',        label: 'NPU' },
-  { value: 'nexa',       label: 'NexaAI' },
+  { value: 'nexa',       label: 'GenieX' },
   { value: 'groq',       label: 'Groq' },
   { value: 'openai',     label: 'OpenAI' },
   { value: 'claude',     label: 'Claude' },

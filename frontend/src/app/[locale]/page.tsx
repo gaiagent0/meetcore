@@ -11,7 +11,7 @@ import ApiKeySettings from '@/components/ApiKeySettings';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import LiveTranscript from '@/components/LiveTranscript';
 import TtsPlayer from '@/components/TtsPlayer';
-import NexaServicePanel from '@/components/NexaServicePanel';
+import GenieXServicePanel from '@/components/GenieXServicePanel';
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'processing';
 
@@ -24,7 +24,7 @@ interface TranscriptSegment {
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:5167';
 
-// ASR (átírás) provider: mindig Nexa Parakeet (NPU) ha elérhető
+// ASR (átírás) provider: mindig GenieX Parakeet (NPU) ha elérhető
 // Ha nem fut, a backend 503-at ad → a user kap egy hasznos üzenetet
 const ASR_URL = `${BACKEND_URL}/npu/transcribe`;
 
@@ -144,7 +144,7 @@ export default function Home() {
         if (transResp.status === 500 || transResp.status === 503) {
           setErrorMessage(
             `⚠️ Átírás sikertelen: ${errDetail}\n` +
-            `Megoldás: nexa serve NexaAI/parakeet-tdt-0.6b-v3-npu`
+            `Megoldás: geniex serve (Whisper-Base QNN ASR)`
           );
           setRecordingState('idle');
           return;
@@ -274,7 +274,7 @@ export default function Home() {
       {/* Provider státusz */}
       <section style={{ marginBottom: '1.5rem' }}>
         <NPUStatus />
-        <NexaServicePanel />
+        <GenieXServicePanel />
       </section>
 
       {/* Fő layout */}
@@ -442,7 +442,7 @@ export default function Home() {
       <footer style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb', fontSize: '0.8rem', color: '#9ca3af' }}>
         Backend: <a href={`${BACKEND_URL}/docs`} target="_blank" rel="noopener noreferrer" style={{ color: '#6b7280' }}>API docs</a>
         &nbsp;·&nbsp; NPU API: http://localhost:8912
-        &nbsp;·&nbsp; ASR: Nexa Parakeet :18181
+        &nbsp;·&nbsp; ASR: GenieX Parakeet :18181
         &nbsp;·&nbsp; LLM: {selectedProvider} / {selectedModel}
       </footer>
 
